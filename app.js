@@ -13,9 +13,11 @@ const CATS = [
   { key:'other',     name:'Other',           color:'#475569' },
 ];
 const SRCS = [
-  { key:'sts',   name:'SitesThatSell', color:'#15a34a' },
-  { key:'colin', name:'Colin',         color:'#7c3aed' },
-  { key:'other', name:'One-off',       color:'#0d9488' },
+  { key:'sts',    name:'SitesThatSell', color:'#15a34a' },
+  { key:'colin',  name:'Colin',         color:'#7c3aed' },
+  { key:'oddjob', name:'Odd job',       color:'#0d9488' },
+  { key:'gift',   name:'Gift',          color:'#db2777' },
+  { key:'other',  name:'One-off',       color:'#475569' },
 ];
 const GREEN = '#15a34a', RED = '#dc2626', BLUE = '#2563eb';
 const INK = '#000000', TRACK = '#e2e2e9';
@@ -37,11 +39,24 @@ const DEFAULTS = {
   seedKilled: [],    // seed ids deleted by hand, never re-added
   tfsa: 0,           // TFSA balance, a holding not a flow, updated by hand
   tfsaAt: '',        // date the balance was last entered, drives the Friday due flag
+  goals: {},         // income, ceiling, invest, investFrom, kept. See renderGoals.
 };
 
 let DB = load();
 let form = { kind:'spend', cat:'foodout', src:'sts', editing:null };
 let ledgerFilter = 'month';
+/* Every month-scoped view reads viewMonth, so the arrows on the hero move all of
+   them at once. It only ever holds a real month between DB.start and today. */
+let viewMonth = monthKey(todayStr());
+function isThisMonth(){ return viewMonth === monthKey(todayStr()); }
+function shiftMonth(step){
+  const all = monthsSinceStart();
+  const i = all.indexOf(viewMonth);
+  const next = all[(i < 0 ? all.length - 1 : i) + step];
+  if(!next) return;
+  viewMonth = next;
+  renderAll();
+}
 
 /* ---------- storage ---------- */
 function load(){
@@ -135,9 +150,12 @@ function srcName(k){ const s = SRCS.find(s=>s.key===k); return s ? s.name : k; }
 
 /* ================= HERO ================= */
 function renderHero(){
-  const mk = monthKey(todayStr());
+  const mk = viewMonth;
   const s = sums(mk);
   $('moLabel').textContent = 'Net in ' + monthName(mk);
+  const all = monthsSinceStart(), i = all.indexOf(mk);
+  $('moPrev').disabled = i <= 0;
+  $('moNext').disabled = i >= all.length - 1;
   const net = $('heroNet');
   net.textContent = (s.net >= 0 ? '+' : '') + fmt(s.net);
   net.className = 'val ' + (s.net >= 0 ? 'pos' : 'neg');
@@ -160,28 +178,38 @@ function renderVerdict(s){
   const day = now.getDate();
   const daysIn = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
   const daysLeft = daysIn - day;
-  const moLong = now.toLocaleString('en-CA', { month:'long' });
+  const moLong = monthName(viewMonth).split(' ')[0];
 
   if(s.income === 0 && s.spend === 0 && s.invest === 0){
     el.textContent = '';
     return;
   }
-  const pace = s.net / day * daysIn;
-  let msg = 'On pace to finish ' + moLong + ' at ' + (pace >= 0 ? '+' : '') + fmt(Math.round(pace)) + ' net.';
+  /* A finished month gets stated, not projected. Only the month being lived
+     in has a pace worth extrapolating. */
+  let msg;
+  if(isThisMonth()){
+    const pace = s.net / day * daysIn;
+    msg = 'On pace to finish ' + moLong + ' at ' + (pace >= 0 ? '+' : '') + fmt(Math.round(pace)) + ' net.';
+  } else {
+    msg = moLong + ' finished at ' + (s.net >= 0 ? '+' : '') + fmt(s.net) + ' net.';
+  }
 
   let worst = null;
   CATS.forEach(c=>{
     const cap = DB.budgets[c.key];
     if(!cap) return;
-    const spent = txInMonth(monthKey(todayStr())).filter(t=>t.kind==='spend' && t.cat===c.key).reduce((a,t)=>a+t.amount,0);
+    const spent = txInMonth(viewMonth).filter(t=>t.kind==='spend' && t.cat===c.key).reduce((a,t)=>a+t.amount,0);
     const ratio = spent / cap;
     if(ratio >= 0.7 && (!worst || ratio > worst.ratio)) worst = { name:c.name, ratio, spent, cap };
   });
   if(worst){
     if(worst.ratio > 1){
-      msg += ' ' + worst.name + ' is ' + fmt(Math.round(worst.spent - worst.cap)) + ' past its cap.';
-    } else {
+      msg += ' ' + worst.name + (isThisMonth() ? ' is ' : ' ended ') +
+        fmt(Math.round(worst.spent - worst.cap)) + ' past its cap.';
+    } else if(isThisMonth()){
       msg += ' ' + worst.name + ' sits at ' + Math.round(worst.ratio * 100) + '% of its cap with ' + daysLeft + (daysLeft === 1 ? ' day' : ' days') + ' left.';
+    } else {
+      msg += ' ' + worst.name + ' ended at ' + Math.round(worst.ratio * 100) + '% of its cap.';
     }
   }
   el.textContent = msg;
@@ -189,8 +217,9 @@ function renderVerdict(s){
 
 function renderToday(){
   const t = todayStr();
-  const list = DB.tx.filter(x=>x.date === t);
   const el = $('todayline');
+  if(!isThisMonth()){ el.textContent = ''; return; }
+  const list = DB.tx.filter(x=>x.date === t);
   if(list.length === 0){ el.textContent = ''; return; }
   const inc = list.filter(x=>x.kind==='income').reduce((a,x)=>a+x.amount,0);
   const sp  = list.filter(x=>x.kind==='spend').reduce((a,x)=>a+x.amount,0);
@@ -291,7 +320,7 @@ function arcPath(cx, cy, r, a0, a1){
   return `M ${x0} ${y0} A ${r} ${r} 0 ${big} 1 ${x1} ${y1}`;
 }
 function renderPie(){
-  const mk = monthKey(todayStr());
+  const mk = viewMonth;
   const byCat = CATS.map(c=>({
     ...c,
     total: txInMonth(mk).filter(t=>t.kind==='spend' && t.cat===c.key).reduce((a,t)=>a+t.amount,0)
@@ -344,9 +373,190 @@ function renderPie(){
   });
 }
 
+/* ================= GOALS =================
+   Andrew's targets, 2026-08-19. Two of them need saying out loud:
+
+   "Up this month" is income minus what he burned. It deliberately does NOT
+   subtract investing, because money moved into investments is money he kept.
+   The hero's net stat does subtract it, so the two numbers differ on purpose.
+
+   The spending ceiling covers everything EXCEPT groceries. Groceries have their
+   own cap in the budgets panel, which is where that $300 lives. */
+const GOALS = [
+  { key:'income',  name:'Income',            hint:'a month' },
+  { key:'ceiling', name:'Spending ceiling',  hint:'a month, groceries excluded', ceiling:true },
+  { key:'invest',  name:'Invested',          hint:'a month' },
+  { key:'kept',    name:'Up this month',     hint:'income minus what you burned' },
+];
+
+function goalActual(key, mk){
+  const list = txInMonth(mk);
+  const inc = list.filter(t=>t.kind==='income').reduce((a,t)=>a+t.amount,0);
+  if(key === 'income') return inc;
+  if(key === 'invest') return list.filter(t=>t.kind==='invest').reduce((a,t)=>a+t.amount,0);
+  const burned = list.filter(t=>t.kind==='spend').reduce((a,t)=>a+t.amount,0);
+  if(key === 'kept') return inc - burned;
+  return list.filter(t=>t.kind==='spend' && t.cat !== 'groceries').reduce((a,t)=>a+t.amount,0);
+}
+
+/* A goal can be set to start later, which is how the $1,000 a month invest
+   target waits for November instead of marking him short every month until then. */
+function goalLive(key, mk){
+  const from = (DB.goals || {})[key + 'From'];
+  return !from || mk >= from;
+}
+
+function renderGoals(){
+  const box = $('goals'); box.innerHTML = '';
+  const mk = viewMonth;
+  const g = DB.goals || (DB.goals = {});
+
+  GOALS.forEach(def=>{
+    const target = g[def.key] || 0;
+    const live = goalLive(def.key, mk);
+    const actual = goalActual(def.key, mk);
+    const pct = target > 0 ? Math.min(Math.abs(actual) / target * 100, 100) : 0;
+
+    /* Honesty rule: a ceiling can be blown mid month, but a target you could
+       still reach is never marked missed while the month is running. */
+    let state = '';
+    if(target > 0 && live){
+      if(def.ceiling) state = actual > target ? 'miss' : (isThisMonth() ? '' : 'hit');
+      else state = actual >= target ? 'hit' : (isThisMonth() ? '' : 'miss');
+    }
+
+    const from = g[def.key + 'From'];
+    const note = !live && from ? 'starts ' + monthName(from) : def.hint;
+
+    const row = document.createElement('div');
+    row.className = 'grow' + (state ? ' ' + state : '');
+    row.innerHTML = `
+      <div class="top">
+        <span class="nm">${def.name}</span>
+        <span class="act">${fmt(actual)}</span>
+        <span class="of">of</span>
+        <input type="number" min="0" step="1" inputmode="numeric" data-goal="${def.key}"
+          value="${target || ''}" placeholder="set" aria-label="${def.name} target">
+      </div>
+      <div class="bbar"><div class="fill" style="width:${live ? pct : 0}%;background:${
+        state === 'miss' ? RED : (state === 'hit' ? GREEN : BLUE)}"></div></div>
+      <div class="ghint">${note}</div>`;
+    box.appendChild(row);
+  });
+
+  box.querySelectorAll('input[data-goal]').forEach(inp=>{
+    inp.onchange = ()=>{
+      const v = parseFloat(inp.value);
+      if(v > 0) DB.goals[inp.dataset.goal] = v; else delete DB.goals[inp.dataset.goal];
+      save(); renderGoals(); renderHero();
+    };
+  });
+}
+
+/* ================= INCOME =================
+   Where the money came from, for the viewed month and across every month. */
+function renderIncome(){
+  const mk = viewMonth;
+  const list = txInMonth(mk).filter(t=>t.kind==='income');
+  const bySrc = SRCS.map(sr=>({
+    name: sr.name, color: sr.color,
+    total: list.filter(t=>t.src === sr.key).reduce((a,t)=>a+t.amount,0),
+  })).filter(x=>x.total > 0).sort((a,b)=>b.total-a.total);
+
+  const total = bySrc.reduce((a,x)=>a+x.total,0);
+  const svg = $('incomePie'); svg.innerHTML = '';
+  const legend = $('incomeLegend'); legend.innerHTML = '';
+
+  if(total === 0){
+    svg.innerHTML = `<circle cx="95" cy="95" r="72" fill="none" stroke="${TRACK}" stroke-width="26"/>
+      <text x="95" y="100" text-anchor="middle" fill="${INK}" font-size="16" font-weight="800">$0</text>`;
+  } else {
+    let a = -Math.PI / 2;
+    bySrc.forEach(p=>{
+      const slice = p.total / total * Math.PI * 2;
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d', arcPath(95, 95, 72, a, a + slice - 0.02));
+      path.setAttribute('stroke', p.color);
+      path.setAttribute('stroke-width', '26');
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke-linecap', 'butt');
+      svg.appendChild(path);
+      a += slice;
+    });
+    const mid = document.createElementNS('http://www.w3.org/2000/svg','text');
+    mid.setAttribute('x','95'); mid.setAttribute('y','92'); mid.setAttribute('text-anchor','middle');
+    mid.setAttribute('fill', INK); mid.setAttribute('font-size','19'); mid.setAttribute('font-weight','800');
+    mid.textContent = fmt(total);
+    svg.appendChild(mid);
+    const sub = document.createElementNS('http://www.w3.org/2000/svg','text');
+    sub.setAttribute('x','95'); sub.setAttribute('y','110'); sub.setAttribute('text-anchor','middle');
+    sub.setAttribute('fill', INK); sub.setAttribute('font-size','11'); sub.setAttribute('font-weight','700');
+    sub.textContent = 'in';
+    svg.appendChild(sub);
+
+    bySrc.forEach(p=>{
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.innerHTML = `<span class="dot" style="background:${p.color}"></span>
+        <span class="nm">${p.name}</span>
+        <span class="amt2">${fmt(p.total)}</span>
+        <span class="pct">${Math.round(p.total/total*100)}%</span>`;
+      legend.appendChild(row);
+    });
+  }
+  renderStreams();
+}
+
+/* One stacked bar per month, split by where the income came from. */
+function renderStreams(){
+  const svg = $('streams');
+  const months = monthsSinceStart();
+  const W = svg.clientWidth || svg.parentNode.clientWidth || 340, H = 210;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = '';
+
+  const totals = months.map(mk=>
+    txInMonth(mk).filter(t=>t.kind==='income').reduce((a,t)=>a+t.amount,0));
+  const max = Math.max(...totals, 1);
+  const pad = 28, base = H - 26;
+  const slot = (W - pad*2) / months.length;
+  const bw = Math.min(46, slot * 0.55);
+
+  months.forEach((mk, i)=>{
+    const cx = pad + slot*i + slot/2;
+    let y = base;
+    SRCS.forEach(sr=>{
+      const amt = txInMonth(mk).filter(t=>t.kind==='income' && t.src === sr.key)
+        .reduce((a,t)=>a+t.amount,0);
+      if(amt <= 0) return;
+      const h = amt / max * (base - 26);
+      y -= h;
+      const r = document.createElementNS('http://www.w3.org/2000/svg','rect');
+      r.setAttribute('x', cx - bw/2); r.setAttribute('y', y);
+      r.setAttribute('width', bw); r.setAttribute('height', Math.max(h, 1));
+      r.setAttribute('fill', sr.color);
+      svg.appendChild(r);
+    });
+    if(totals[i] > 0){
+      const v = document.createElementNS('http://www.w3.org/2000/svg','text');
+      v.setAttribute('x', cx); v.setAttribute('y', y - 6);
+      v.setAttribute('text-anchor','middle'); v.setAttribute('fill', INK);
+      v.setAttribute('font-size','11'); v.setAttribute('font-weight','800');
+      v.textContent = fmt(Math.round(totals[i]));
+      svg.appendChild(v);
+    }
+    const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x', cx); t.setAttribute('y', base + 16);
+    t.setAttribute('text-anchor','middle'); t.setAttribute('fill', INK);
+    t.setAttribute('font-size','11'); t.setAttribute('font-weight','700');
+    t.textContent = monthShort(mk);
+    svg.appendChild(t);
+  });
+}
+
 /* ================= BUDGETS ================= */
 function renderBudgets(){
-  const mk = monthKey(todayStr());
+  const mk = viewMonth;
   const box = $('budgets'); box.innerHTML = '';
   CATS.forEach(c=>{
     const spent = txInMonth(mk).filter(t=>t.kind==='spend' && t.cat===c.key).reduce((a,t)=>a+t.amount,0);
@@ -455,7 +665,7 @@ function renderLedger(){
   $('fMonth').className = ledgerFilter === 'month' ? 'on' : '';
   $('fAll').className = ledgerFilter === 'all' ? 'on' : '';
   let list = [...DB.tx].sort((a,b)=> b.date === a.date ? (b.id > a.id ? 1 : -1) : (b.date > a.date ? 1 : -1));
-  if(ledgerFilter === 'month') list = list.filter(t=>monthKey(t.date) === monthKey(todayStr()));
+  if(ledgerFilter === 'month') list = list.filter(t=>monthKey(t.date) === viewMonth);
   if(list.length === 0) return;
   list.forEach(t=>{
     const row = document.createElement('div');
@@ -556,19 +766,29 @@ function restoreJSON(file){
     catch(e){ dataMsg('That file is not valid JSON.'); return; }
     if(!inc || !Array.isArray(inc.tx)){ dataMsg('That file has no ledger in it.'); return; }
 
-    const have = new Set(DB.tx.map(t=>t.id));
-    let added = 0;
+    const byId = new Map(DB.tx.map(t=>[t.id, t]));
+    let added = 0, fixed = 0;
     inc.tx.forEach(t=>{
-      if(!t || !t.id || have.has(t.id)) return;
-      DB.tx.push(t); have.add(t.id); added++;
+      if(!t || !t.id) return;
+      const mine = byId.get(t.id);
+      if(!mine){ DB.tx.push(t); byId.set(t.id, t); added++; return; }
+      /* Same entry, recategorized upstream. Only the label moves, never a
+         date or an amount, so a restore can never quietly rewrite money. */
+      if(t.src && mine.src !== t.src){ mine.src = t.src; fixed++; }
+      if(t.cat && mine.cat !== t.cat){ mine.cat = t.cat; fixed++; }
     });
     Object.keys(inc.budgets || {}).forEach(k=>{ if(!DB.budgets[k]) DB.budgets[k] = inc.budgets[k]; });
+    DB.goals = DB.goals || {};
+    Object.keys(inc.goals || {}).forEach(k=>{ if(!DB.goals[k]) DB.goals[k] = inc.goals[k]; });
     if(inc.tfsa && !DB.tfsa){ DB.tfsa = inc.tfsa; DB.tfsaAt = inc.tfsaAt || ''; }
     (inc.seedKilled || []).forEach(id=>{ if(!DB.seedKilled.includes(id)) DB.seedKilled.push(id); });
     if(inc.start && inc.start < DB.start) DB.start = inc.start;
 
     save(); renderAll();
-    dataMsg(added ? 'Restored ' + added + ' entries.' : 'Nothing new in that file.');
+    const bits = [];
+    if(added) bits.push('restored ' + added);
+    if(fixed) bits.push('recategorized ' + fixed);
+    dataMsg(bits.length ? bits.join(', ') + '.' : 'Nothing new in that file.');
   };
   r.onerror = () => dataMsg('Could not read that file.');
   r.readAsText(file);
@@ -581,13 +801,13 @@ function showTab(name){
     const nav = $('nav' + n.charAt(0).toUpperCase() + n.slice(1));
     nav.className = n === name ? 'on' : '';
   });
-  if(name === 'charts'){ renderPie(); renderBudgets(); renderMonths(); renderInvest(); }
+  if(name === 'charts'){ renderGoals(); renderPie(); renderIncome(); renderBudgets(); renderMonths(); renderInvest(); }
   if(name === 'ledger'){ renderLedger(); }
 }
 
 /* ================= INIT ================= */
 function renderAll(){
-  renderHero(); renderForm(); renderPie(); renderBudgets(); renderMonths(); renderInvest(); renderLedger();
+  renderHero(); renderForm(); renderGoals(); renderPie(); renderIncome(); renderBudgets(); renderMonths(); renderInvest(); renderLedger();
 }
 $('navHome').onclick   = ()=>showTab('home');
 $('navCharts').onclick = ()=>showTab('charts');
@@ -601,13 +821,15 @@ $('amount').addEventListener('keydown', e=>{ if(e.key === 'Enter') addTx(); });
 $('txNote').addEventListener('keydown', e=>{ if(e.key === 'Enter') addTx(); });
 $('fMonth').onclick = ()=>{ ledgerFilter = 'month'; renderLedger(); };
 $('fAll').onclick = ()=>{ ledgerFilter = 'all'; renderLedger(); };
+$('moPrev').onclick = ()=>shiftMonth(-1);
+$('moNext').onclick = ()=>shiftMonth(1);
 $('exportBtn').onclick = exportCSV;
 $('backupBtn').onclick = backupJSON;
 $('restoreBtn').onclick = ()=>$('restoreFile').click();
 $('restoreFile').onchange = e=>{ const f = e.target.files[0]; if(f) restoreJSON(f); e.target.value = ''; };
 $('heroTfsa').onclick = editTfsa;
 $('txDate').value = todayStr();
-window.addEventListener('resize', ()=>{ renderMonths(); renderInvest(); });
+window.addEventListener('resize', ()=>{ renderMonths(); renderInvest(); renderStreams(); });
 applySeed();
 renderAll();
 
