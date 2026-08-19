@@ -1,6 +1,6 @@
 /* Offline support. Network first for the app shell so edits show up right away,
    cache first for icons. Bump CACHE on every deploy that changes the shell. */
-const CACHE = 'money-v3';
+const CACHE = 'money-v4';
 const ASSETS = ['./', './index.html', './app.js', './seed.js', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png'];
 self.addEventListener('install', e=>{

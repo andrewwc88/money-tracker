@@ -175,25 +175,12 @@ function renderHero(){
 function renderVerdict(s){
   const el = $('verdict');
   const now = new Date();
-  const day = now.getDate();
   const daysIn = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-  const daysLeft = daysIn - day;
-  const moLong = monthName(viewMonth).split(' ')[0];
+  const daysLeft = daysIn - now.getDate();
 
-  if(s.income === 0 && s.spend === 0 && s.invest === 0){
-    el.textContent = '';
-    return;
-  }
-  /* A finished month gets stated, not projected. Only the month being lived
-     in has a pace worth extrapolating. */
-  let msg;
-  if(isThisMonth()){
-    const pace = s.net / day * daysIn;
-    msg = 'On pace to finish ' + moLong + ' at ' + (pace >= 0 ? '+' : '') + fmt(Math.round(pace)) + ' net.';
-  } else {
-    msg = moLong + ' finished at ' + (s.net >= 0 ? '+' : '') + fmt(s.net) + ' net.';
-  }
-
+  /* Andrew killed the pace projection on 2026-08-19. The hero already shows the
+     net in 88px type, so restating it was noise. What is left is the one thing
+     Home cannot show any other way: a cap in trouble. No cap in trouble, no line. */
   let worst = null;
   CATS.forEach(c=>{
     const cap = DB.budgets[c.key];
@@ -202,17 +189,18 @@ function renderVerdict(s){
     const ratio = spent / cap;
     if(ratio >= 0.7 && (!worst || ratio > worst.ratio)) worst = { name:c.name, ratio, spent, cap };
   });
-  if(worst){
-    if(worst.ratio > 1){
-      msg += ' ' + worst.name + (isThisMonth() ? ' is ' : ' ended ') +
-        fmt(Math.round(worst.spent - worst.cap)) + ' past its cap.';
-    } else if(isThisMonth()){
-      msg += ' ' + worst.name + ' sits at ' + Math.round(worst.ratio * 100) + '% of its cap with ' + daysLeft + (daysLeft === 1 ? ' day' : ' days') + ' left.';
-    } else {
-      msg += ' ' + worst.name + ' ended at ' + Math.round(worst.ratio * 100) + '% of its cap.';
-    }
+
+  if(!worst){ el.textContent = ''; return; }
+
+  if(worst.ratio > 1){
+    el.textContent = worst.name + (isThisMonth() ? ' is ' : ' ended ') +
+      fmt(Math.round(worst.spent - worst.cap)) + ' past its cap.';
+  } else if(isThisMonth()){
+    el.textContent = worst.name + ' sits at ' + Math.round(worst.ratio * 100) + '% of its cap with ' +
+      daysLeft + (daysLeft === 1 ? ' day' : ' days') + ' left.';
+  } else {
+    el.textContent = worst.name + ' ended at ' + Math.round(worst.ratio * 100) + '% of its cap.';
   }
-  el.textContent = msg;
 }
 
 function renderToday(){
