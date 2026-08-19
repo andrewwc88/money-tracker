@@ -1,0 +1,5 @@
+# Andrew's real numbers never go to a host. Backups stay local.
+money-backup-*.json
+CLAUDE.md
+.playwright-mcp/
+.DS_Store

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Money</title>
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Money">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icons/icon-180.png">
+<style>
+:root{
+  --bg:#ffffff;
+  --panel:#f6f6f8;
+  --panel2:#ececf1;
+  --line:#d6d6de;
+  --ink:#000000;
+  --green:#15a34a;
+  --red:#dc2626;
+  --blue:#2563eb;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{padding:24px 32px 60px;max-width:1380px;margin:0 auto;font-variant-numeric:tabular-nums}
+
+/* header */
+header{display:flex;align-items:center;gap:26px;margin-bottom:34px;flex-wrap:wrap}
+header h1{font-size:24px;font-weight:800;letter-spacing:-0.5px}
+.tabs{display:flex;gap:6px}
+.tabs button{background:none;border:none;color:var(--ink);padding:8px 18px;border-radius:999px;font-size:14px;font-weight:700;cursor:pointer}
+.tabs button.on{background:var(--ink);color:var(--bg)}
+header .spacer{flex:1}
+
+/* panels */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px 24px}
+.panel h2{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:1.8px;margin-bottom:18px}
+
+/* ===== HOME ===== */
+.hero{text-align:center;padding:26px 0 6px}
+.hero .lbl{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:2.2px}
+.hero .val{font-size:88px;font-weight:800;letter-spacing:-3.5px;line-height:1.04;margin:6px 0 2px}
+.hero .minis{display:flex;justify-content:center;gap:46px;margin-top:20px}
+.hero .minis .lbl2{font-size:11.5px;font-weight:800;text-transform:uppercase;letter-spacing:1.6px}
+.hero .minis .v{font-size:25px;font-weight:800;letter-spacing:-0.5px;margin-top:2px}
+.hero .minis .v.tfsa{cursor:pointer;border-bottom:1px dashed var(--line)}
+.hero .minis .v.tfsa:hover{border-bottom-color:var(--blue)}
+.hero .minis .v.tfsa.due{border-bottom:2px solid var(--red)}
+#tfsaLbl.dueLbl{color:var(--red)}
+.hero .minis input.tfsaIn{width:150px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--ink);
+  font-family:inherit;font-size:25px;font-weight:800;line-height:1;letter-spacing:-0.5px;
+  text-align:center;padding:3px 0;margin-top:2px;-moz-appearance:textfield}
+.hero .minis input.tfsaIn::-webkit-outer-spin-button,
+.hero .minis input.tfsaIn::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.hero .minis input.tfsaIn:focus{outline:none;border-color:var(--blue)}
+.pos{color:var(--green)} .neg{color:var(--red)} .inv{color:var(--blue)}
+.verdict{text-align:center;font-size:16.5px;font-weight:700;margin:26px auto 6px;max-width:620px;line-height:1.45}
+.todayline{text-align:center;font-size:13.5px;font-weight:600;margin-bottom:30px}
+
+.addwrap{max-width:600px;margin:0 auto}
+.typerow{display:flex;gap:8px;margin-bottom:14px}
+.typerow button{flex:1;padding:11px 0;border-radius:11px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:14px;font-weight:700;cursor:pointer}
+.typerow button.on-spend{background:var(--red);border-color:var(--red);color:#fff}
+.typerow button.on-income{background:var(--green);border-color:var(--green);color:#fff}
+.typerow button.on-invest{background:var(--blue);border-color:var(--blue);color:#fff}
+.amt{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.amt .sym{font-size:32px;font-weight:800}
+.amt input{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:13px;color:var(--ink);font-size:32px;font-weight:800;padding:11px 16px;width:100%}
+input::placeholder{color:var(--ink);opacity:1}
+input:focus,select:focus{outline:2px solid var(--blue);outline-offset:-1px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.chips button{padding:8px 15px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:13px;font-weight:700;cursor:pointer}
+.chips button.on{border-color:transparent}
+.addrow{display:flex;gap:10px}
+.addrow input[type=date]{background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:9px 12px;font-size:14px;font-weight:600;color-scheme:light}
+.addrow input[type=text]{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:9px 12px;font-size:14px}
+.gorow{display:flex;gap:10px;margin-top:14px}
+.gorow button{flex:1;padding:14px 0;border-radius:13px;border:none;font-size:15px;font-weight:800;cursor:pointer}
+#addBtn{background:var(--ink);color:var(--bg)}
+#cancelBtn{display:none;background:var(--panel2);color:var(--ink);border:1px solid var(--line);flex:0 0 110px}
+
+/* ===== CHARTS ===== */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:18px}
+.pieWrap{display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.legend{flex:1;min-width:180px}
+.legend .row{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:14px;font-weight:600}
+.legend .dot{width:11px;height:11px;border-radius:50%;flex:0 0 11px}
+.legend .nm{flex:1}
+.legend .amt2{font-weight:800}
+.legend .pct{width:46px;text-align:right;font-size:12px;font-weight:700}
+.brow{margin-bottom:13px}
+.brow .top{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;margin-bottom:5px}
+.brow .top .nm{flex:1}
+.brow .top input{width:76px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:4px 8px;font-size:13px;font-weight:700;text-align:right}
+.bbar{height:9px;border-radius:999px;background:var(--panel2);overflow:hidden}
+.bbar .fill{height:100%;border-radius:999px}
+.bhint{font-size:12.5px;font-weight:600;margin-top:14px}
+.chartNote{font-size:12.5px;font-weight:600;margin-top:10px}
+
+/* ===== LEDGER ===== */
+.lfilter{display:flex;gap:8px;margin-bottom:12px}
+.lfilter button{padding:6px 13px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:12.5px;font-weight:700;cursor:pointer}
+.lfilter button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.lrow{display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid var(--line);font-size:14px}
+.lrow:last-child{border-bottom:none}
+.lrow .d{width:64px;font-weight:600;font-size:12.5px}
+.lrow .tag{padding:3px 10px;border-radius:999px;font-size:12px;font-weight:800}
+.lrow .note{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lrow .amt3{font-weight:800;font-size:15px}
+.lrow .act{display:flex;gap:6px}
+.lrow .act button{background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:3px 9px;font-size:12px;font-weight:700;cursor:pointer}
+.lrow .act button:hover{background:var(--line)}
+.empty{padding:26px 0;text-align:center;font-size:14.5px;font-weight:600}
+.datarow{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.datarow button{background:var(--panel2);border:1px solid var(--line);color:var(--ink);padding:9px 15px;
+  border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer}
+.datarow button:hover{background:var(--line)}
+.datamsg{font-size:13px;font-weight:700;margin-top:10px}
+.datamsg:empty{margin-top:0}
+
+/* ===== PHONE (2026-08-19: this became a home screen app) ===== */
+@media (max-width:640px){
+  body{padding:14px 14px calc(22px + env(safe-area-inset-bottom));max-width:100%}
+  header{gap:12px;margin-bottom:20px;position:sticky;top:0;background:var(--bg);
+    padding:8px 0 10px;z-index:20;border-bottom:1px solid var(--line)}
+  header h1{font-size:19px;width:auto}
+  header .spacer{display:none}
+  .tabs{flex:1;justify-content:flex-end}
+  .tabs button{padding:7px 12px;font-size:13.5px}
+
+  .hero{padding:14px 0 2px}
+  .hero .lbl{font-size:11px;letter-spacing:1.6px}
+  .hero .val{font-size:clamp(40px,13.5vw,62px);letter-spacing:-2px;margin:4px 0 0}
+  .hero .minis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 6px;margin-top:16px}
+  .hero .minis .lbl2{font-size:9.5px;letter-spacing:0.9px}
+  .hero .minis .v{font-size:17px}
+  .hero .minis input.tfsaIn{width:100%;font-size:17px}
+  .verdict{font-size:14.5px;margin:18px auto 4px}
+  .todayline{font-size:12.5px;margin-bottom:20px}
+
+  .panel{padding:16px 15px;border-radius:15px}
+  .addwrap{max-width:100%}
+  .amt input{font-size:27px;padding:12px 14px}
+  .amt .sym{font-size:26px}
+  /* thumb-sized targets, iOS zooms any input under 16px on focus */
+  .chips button{padding:10px 14px;font-size:14px}
+  .typerow button{padding:13px 0;font-size:15px}
+  .addrow{flex-wrap:wrap}
+  .addrow input[type=date]{flex:1 0 100%;font-size:16px}
+  .addrow input[type=text]{flex:1 0 100%;font-size:16px}
+  .gorow button{padding:15px 0}
+
+  .grid{grid-template-columns:1fr;gap:14px}
+  .pieWrap{gap:14px;justify-content:center}
+  .brow .top input{font-size:16px;width:84px}
+
+  .lrow{flex-wrap:wrap;gap:8px;padding:12px 2px}
+  .lrow .d{width:auto;order:1}
+  .lrow .tag{order:2}
+  .lrow .amt3{order:3;margin-left:auto}
+  .lrow .note{order:4;flex:1 0 100%;white-space:normal}
+  .lrow .act{order:5;flex:1 0 100%;justify-content:flex-end}
+  .lrow .act button{padding:7px 14px;font-size:13px}
+  .datarow button{flex:1;padding:12px 0;font-size:14px}
+}
+
+.tab{display:none}
+.tab.on{display:block}
+svg text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+</style>
+</head>
+<body>
+<header>
+  <h1>Money</h1>
+  <div class="tabs">
+    <button id="navHome" class="on">Home</button>
+    <button id="navCharts">Charts</button>
+    <button id="navLedger">Ledger</button>
+  </div>
+  <div class="spacer"></div>
+</header>
+
+<section class="tab on" id="tab-home">
+  <div class="hero">
+    <div class="lbl" id="moLabel">Net this month</div>
+    <div class="val" id="heroNet">$0</div>
+    <div class="minis">
+      <div><div class="lbl2 pos">In</div><div class="v" id="heroIn">$0</div></div>
+      <div><div class="lbl2 neg">Burned</div><div class="v" id="heroOut">$0</div></div>
+      <div><div class="lbl2 inv">Built</div><div class="v" id="heroInv">$0</div></div>
+      <div><div class="lbl2 inv">Invest rate</div><div class="v" id="heroRate">0%</div></div>
+      <div><div class="lbl2 inv" id="tfsaLbl">TFSA</div><div class="v tfsa" id="heroTfsa" title="Tap to update">$0</div></div>
+    </div>
+  </div>
+  <div class="verdict" id="verdict"></div>
+  <div class="todayline" id="todayline"></div>
+  <div class="addwrap">
+    <div class="panel">
+      <h2>Add</h2>
+      <div class="typerow">
+        <button id="tSpend">Spent</button>
+        <button id="tIncome">Made</button>
+        <button id="tInvest">Invested</button>
+      </div>
+      <div class="amt"><span class="sym">$</span><input id="amount" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div>
+      <div class="chips" id="chipRow"></div>
+      <div class="addrow">
+        <input type="date" id="txDate">
+        <input type="text" id="txNote" placeholder="Note, optional">
+      </div>
+      <div class="gorow">
+        <button id="addBtn">Add</button>
+        <button id="cancelBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="tab" id="tab-charts">
+  <div class="grid">
+    <div class="panel">
+      <h2>Spending this month</h2>
+      <div class="pieWrap">
+        <svg id="pie" width="190" height="190" viewBox="0 0 190 190"></svg>
+        <div class="legend" id="legend"></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Budgets</h2>
+      <div id="budgets"></div>
+    </div>
+    <div class="panel">
+      <h2>Months</h2>
+      <svg id="months" width="100%" height="210"></svg>
+      <div class="chartNote"><span class="pos">Green</span> in, <span class="neg">red</span> burned, <span class="inv">blue</span> built</div>
+    </div>
+    <div class="panel">
+      <h2>Invest rate</h2>
+      <svg id="investChart" width="100%" height="210"></svg>
+    </div>
+  </div>
+</section>
+
+<section class="tab" id="tab-ledger">
+  <div class="panel">
+    <h2>Ledger</h2>
+    <div class="lfilter">
+      <button id="fMonth" class="on">This month</button>
+      <button id="fAll">Everything</button>
+    </div>
+    <div id="ledger"></div>
+    <div class="datarow">
+      <button id="exportBtn">Export CSV</button>
+      <button id="backupBtn">Backup JSON</button>
+      <button id="restoreBtn">Restore</button>
+      <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+    </div>
+    <div class="datamsg" id="dataMsg"></div>
+  </div>
+</section>
+
+<script src="seed.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
